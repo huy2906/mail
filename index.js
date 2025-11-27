@@ -4,45 +4,38 @@ import nodemailer from "nodemailer";
 const app = express();
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("Mail API is running...");
+});
+
 app.post("/api/send", async (req, res) => {
   try {
-    const { apiName, statusCode, errorMsg, timestamp, to } = req.body;
+    const { to, subject, text } = req.body;
+
+    if (!to) return res.status(400).json({ error: "Missing 'to' field" });
 
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
+      service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: process.env.GMAIL_USER,   // bạn set trong Render
+        pass: process.env.GMAIL_PASS    // bạn set trong Render
       }
     });
 
-    const html = `
-      <h2>⚠ CẢNH BÁO API LỖI</h2>
-      <b>API:</b> ${apiName}<br/>
-      <b>Status:</b> ${statusCode}<br/>
-      <b>Error:</b> ${errorMsg}<br/>
-      <b>Time:</b> ${timestamp}
-    `;
-
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: process.env.GMAIL_USER,
       to,
-      subject: "⚠ API Error Alert",
-      html
+      subject: subject || "No Subject",
+      text: text || ""
     });
 
-    res.json({ ok: true, message: "Email sent" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ ok: false, error: e.message });
+    res.json({ success: true, message: "Mail sent!" });
+
+  } catch (err) {
+    console.error("Mail error:", err);
+    res.status(500).json({ error: err.toString() });
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("Mail API is running.");
-});
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log("Server running on port " + port));
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log("Mail API running on", PORT));
