@@ -1,41 +1,35 @@
 import express from "express";
-import nodemailer from "nodemailer";
+import bodyParser from "body-parser";
+import { Resend } from "resend";
 
 const app = express();
-app.use(express.json());
+app.use(bodyParser.json());
 
-app.get("/", (req, res) => {
-  res.send("Mail API is running...");
-});
+// Resend config
+const resend = new Resend("re_GFtd1s9q_G3aRNet7kZnjpf3XNmvEyStw");
 
 app.post("/api/send", async (req, res) => {
   try {
     const { to, subject, text } = req.body;
 
-    if (!to) return res.status(400).json({ error: "Missing 'to' field" });
+    if (!to || !subject || !text) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.GMAIL_USER,   // bạn set trong Render
-        pass: process.env.GMAIL_PASS    // bạn set trong Render
-      }
-    });
-
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER,
+    const result = await resend.emails.send({
+      from: "Huy <onboarding@resend.dev>",
       to,
-      subject: subject || "No Subject",
-      text: text || ""
+      subject,
+      text
     });
 
-    res.json({ success: true, message: "Mail sent!" });
-
+    res.json({ success: true, result });
   } catch (err) {
-    console.error("Mail error:", err);
-    res.status(500).json({ error: err.toString() });
+    console.error("Resend error:", err);
+    res.status(500).json({ error: "Failed to send email", detail: err });
   }
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Mail API running on", PORT));
+// Render requires listening on 0.0.0.0
+const port = process.env.PORT || 10000;
+app.listen(port, "0.0.0.0", () => console.log("Mail API running on", port));
