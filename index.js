@@ -1,35 +1,40 @@
 import express from "express";
-import bodyParser from "body-parser";
-import { Resend } from "resend";
+import cors from "cors";
+import nodemailer from "nodemailer";
 
 const app = express();
-app.use(bodyParser.json());
-
-// Resend config
-const resend = new Resend("re_GFtd1s9q_G3aRNet7kZnjpf3XNmvEyStw");
+app.use(cors());
+app.use(express.json());
 
 app.post("/api/send", async (req, res) => {
   try {
     const { to, subject, text } = req.body;
 
-    if (!to || !subject || !text) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
+      }
+    });
 
-    const result = await resend.emails.send({
-      from: "Huy <onboarding@resend.dev>",
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
       to,
       subject,
       text
     });
 
-    res.json({ success: true, result });
-  } catch (err) {
-    console.error("Resend error:", err);
-    res.status(500).json({ error: "Failed to send email", detail: err });
+    res.json({ success: true, message: "Email sent!" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Render requires listening on 0.0.0.0
-const port = process.env.PORT || 10000;
-app.listen(port, "0.0.0.0", () => console.log("Mail API running on", port));
+app.get("/", (req, res) => {
+  res.send("Mail API is running!");
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log("Server running on " + PORT));
